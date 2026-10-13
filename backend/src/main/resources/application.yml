@@ -1,0 +1,67 @@
+spring:
+  application:
+    name: ecomstore-backend
+
+  profiles:
+    active: local
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+
+server:
+  port: 8080
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:this-is-a-dev-only-secret-change-me-please-32chars}
+    expiration-ms: 86400000   # 24 hours
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+---
+# ---------------------------------------------------------------------------
+# LOCAL PROFILE - MySQL running on your laptop (via docker-compose or local install)
+# ---------------------------------------------------------------------------
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:mysql://localhost:3306/ecomstore?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ecomuser
+    password: ecompass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+---
+# ---------------------------------------------------------------------------
+# AWS PROFILE - RDS MySQL. All values come from environment variables so
+# nothing sensitive is ever committed to git. On EC2 these get injected via
+# Secrets Manager + a small start-up script (covered in the AWS phase).
+# ---------------------------------------------------------------------------
+spring:
+  config:
+    activate:
+      on-profile: aws
+  datasource:
+    url: jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME:ecomstore}?useSSL=true&serverTimezone=UTC
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate    # never auto-alter a real RDS schema; use a migration tool instead
+    show-sql: false
