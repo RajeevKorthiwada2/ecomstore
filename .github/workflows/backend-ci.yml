@@ -1,0 +1,35 @@
+name: backend-ci
+
+on:
+  push:
+    branches: [main]
+    paths: ["backend/**"]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPO: ecomstore-backend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::026818612227:role/ecomstore-github-actions-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push
+        run: |
+          IMAGE=${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPO }}
+          docker build -t $IMAGE:${{ github.sha }} ./backend
+          docker push $IMAGE:${{ github.sha }}
