@@ -33,3 +33,23 @@ jobs:
           IMAGE=${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPO }}
           docker build -t $IMAGE:${{ github.sha }} ./backend
           docker push $IMAGE:${{ github.sha }}
+          
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::026818612227:role/ecomstore-github-actions-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy via SSM
+        run: |
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids i-0307593c896709e73 \
+            --document-name AWS-RunShellScript \
+            --parameters 'commands=["curl -s https://raw.githubusercontent.com/RajeevKorthiwada2/ecomstore/${{ github.sha }}/deploy/remote-deploy.sh -o /tmp/deploy.sh","bash /tmp/deploy.sh ${{ github.sha }}"]' \
+            --query Command.CommandId --output text)
+          aws ssm wait command-executed --command-id $CMD_ID --instance-id i-0307593c896709e73
+          aws ssm get-command-invocation --command-id $CMD_ID --instance-id i-0307593c896709e73 \
+            --query '{Status:Status,Output:StandardOutputContent,Error:StandardErrorContent}'
